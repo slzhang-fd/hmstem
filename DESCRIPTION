@@ -1,15 +1,17 @@
 Package: hmstem
-Title: What the Package Does (One Line, Title Case)
+Title: Hierarchical Modeling by Stochastic EM method
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Siliang",
+           family = "Zhang",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to
-    pick a license
+           email = "zhangsiliang123@gmail.com",
+           comment = c(ORCID = "0000-0002-2641-4944"))
+Description: Hierarchical Modeling by Stochastic EM method.
+Imports: 
+      truncnorm,
+      mvtnorm
+License: use_gpl3_license()
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
