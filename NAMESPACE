@@ -3,5 +3,6 @@
 export(hiera_2factor)
 export(hiera_3factor)
 export(my_in_op)
+export(res_summary)
 importFrom(mvtnorm,rmvnorm)
 importFrom(truncnorm,rtruncnorm)

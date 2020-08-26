@@ -7,17 +7,22 @@ sample_Y_star <- function(Y_pos_ind, Y_zero_ind, Y_star, U_all, V_all, Xbeta, Si
   mu_Y_cond <- rep(0, NN)
   sigma_Y_cond <- 1
   mu_v_u <- Xbeta + V_all[j_ind,] + U_all[i_ind,]
+  if(K==1){
+    Y_star[Y_pos_ind[,1],1] <- rtruncnorm(1, a=0, mean = mu_v_u[Y_pos_ind[,1]], sd = 1)
+    Y_star[Y_zero_ind[,1],1] <- rtruncnorm(1, b=0, mean = mu_v_u[Y_zero_ind[,1]], sd = 1)
+  } else{
+    for(k in 1:K){
+      sigma11 <- Sigma_e[k,k]
+      sigma12 <- Sigma_e[k,-k]
+      sigma22_inv <- solve(Sigma_e[-k,-k])
+      sigma_Y_cond <- sigma11 - sigma12 %*% sigma22_inv %*% sigma12
+      mu_Y_cond <- mu_v_u[,k] + (Y_star[,-k] - mu_v_u[,-k]) %*% sigma22_inv %*% sigma12
 
-  for(k in 1:K){
-    sigma11 <- Sigma_e[k,k]
-    sigma12 <- Sigma_e[k,-k]
-    sigma22_inv <- solve(Sigma_e[-k,-k])
-    sigma_Y_cond <- sigma11 - sigma12 %*% sigma22_inv %*% sigma12
-    mu_Y_cond <- mu_v_u[,k] + (Y_star[,-k] - mu_v_u[,-k]) %*% sigma22_inv %*% sigma12
-
-    Y_star[Y_pos_ind[,k],k] <- rtruncnorm(1, a=0, mean = mu_Y_cond[Y_pos_ind[,k]], sd = sqrt(sigma_Y_cond))
-    Y_star[Y_zero_ind[,k],k] <- rtruncnorm(1, b=0, mean = mu_Y_cond[Y_zero_ind[,k]], sd = sqrt(sigma_Y_cond))
+      Y_star[Y_pos_ind[,k],k] <- rtruncnorm(1, a=0, mean = mu_Y_cond[Y_pos_ind[,k]], sd = sqrt(sigma_Y_cond))
+      Y_star[Y_zero_ind[,k],k] <- rtruncnorm(1, b=0, mean = mu_Y_cond[Y_zero_ind[,k]], sd = sqrt(sigma_Y_cond))
+    }
   }
+
   Y_star
 }
 
@@ -126,11 +131,12 @@ Optim_step <- function(x_covs, Y_star, U_all, V_all, coeffs, B_e, Sigma_e_inv, B
                   method = "BFGS")$par
   coeffs <- matrix(params,p,K)
   ## update Sigma_e
-  params <- optim(par = c(B_e[lower.tri(B_e)]), fn = neg_loglik_Y_star_sigma,
-                  temp=Y_star - (x_covs %*% coeffs + V_all[j_ind,] + U_all[i_ind,]),
-                  method = "BFGS")$par
-  B_e[lower.tri(B_e)] <- params
-  # B_e <- diag(1/sqrt(rowSums(B_e^2))) %*% B_e
+  if(K>1){
+    params <- optim(par = c(B_e[lower.tri(B_e)]), fn = neg_loglik_Y_star_sigma,
+                    temp=Y_star - (x_covs %*% coeffs + V_all[j_ind,] + U_all[i_ind,]),
+                    method = "BFGS")$par
+    B_e[lower.tri(B_e)] <- params
+  }
 
   ## update Sigma_u
   params <- optim(par = B_u[lower.tri(B_u,diag = T)], fn = neg_loglik_mvnorm,

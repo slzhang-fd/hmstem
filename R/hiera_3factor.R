@@ -16,10 +16,10 @@ hiera_3factor <- function(Y, x_covs, j_ind, i_ind, jt_ind, max_steps){
   V_all <- matrix(rnorm(grp_num*K),grp_num,K)
   W_all <- matrix(rnorm(jt_num*K),jt_num,K)
   ## initialize parameters
-  coeffs <- matrix(0, p, K)
+  coeffs <- matrix(0, cov_num, K)
   B_e <- B_v <- B_u <- B_w <- diag(rep(1,K))
 
-  coeffs_all <- matrix(0, max_steps, p*K)
+  coeffs_all <- matrix(0, max_steps, cov_num*K)
   B_e_all <- B_v_all <- B_u_all <- B_w_all <- matrix(0, max_steps, K*K)
   Y_pos_ind <- Y==1
   Y_zero_ind <- Y==0
@@ -44,7 +44,7 @@ hiera_3factor <- function(Y, x_covs, j_ind, i_ind, jt_ind, max_steps){
                                 rowsum(Y_star - Xbeta - V_all[j_ind,] - W_all[jt_ind,], i_ind, reorder = T))
     cat('sample U done |')
     # sample V
-    V_all <- sample_X_all1_3fac(V_all, Sigma_e_inv, Sigma_u_inv, it_len,
+    V_all <- sample_X_all1_3fac(V_all, Sigma_e_inv, Sigma_v_inv, it_len,
                                 rowsum(Y_star - Xbeta - U_all[i_ind,] - W_all[jt_ind,], j_ind, reorder = T))
     cat('sample V done |')
     # sample W
@@ -72,4 +72,24 @@ hiera_3factor <- function(Y, x_covs, j_ind, i_ind, jt_ind, max_steps){
               'B_u_all'=B_u_all,
               'B_v_all'=B_v_all,
               'B_w_all'=B_w_all))
+}
+#' @export
+res_summary <- function(hiera_res, burnin, p, K){
+  coeffs_hat = matrix(colMeans(matrix(hiera_res[[1]][-(1:burnin),],ncol = p*K)),p,K)
+  B_e_hat = matrix(colMeans(matrix(hiera_res[[2]][-(1:burnin),],ncol = K*K)),K,K)
+  B_u_hat = matrix(colMeans(matrix(hiera_res[[3]][-(1:burnin),],ncol = K*K)),K,K)
+  B_v_hat = matrix(colMeans(matrix(hiera_res[[4]][-(1:burnin),],ncol = K*K)),K,K)
+  if(length(hiera_res)==4){
+    return(list('coeffs'= coeffs_hat,
+                'Sigma_e' = B_e_hat %*% t(B_e_hat),
+                'Sigma_u' = B_u_hat %*% t(B_u_hat),
+                'Sigma_v' = B_v_hat %*% t(B_v_hat)))
+  } else{
+    B_w_hat = matrix(colMeans(matrix(hiera_res[[5]][-(1:burnin),],ncol = K*K)),K,K)
+    return(list('coeffs'= coeffs_hat,
+                'Sigma_e' = B_e_hat %*% t(B_e_hat),
+                'Sigma_u' = B_u_hat %*% t(B_u_hat),
+                'Sigma_v' = B_v_hat %*% t(B_v_hat),
+                'Sigma_w' = B_w_hat %*% t(B_w_hat)))
+  }
 }
