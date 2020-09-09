@@ -74,22 +74,54 @@ hiera_3factor <- function(Y, x_covs, j_ind, i_ind, jt_ind, max_steps){
               'B_w_all'=B_w_all))
 }
 #' @export
-res_summary <- function(hiera_res, burnin, p, K){
+res_summary <- function(hiera_res, burnin){
+  K <- sqrt(ncol(hiera_res[[2]]))
+  p <- ncol(hiera_res[[1]]) / K
+  stem_len <- nrow(hiera_res[[2]])
+
   coeffs_hat = matrix(colMeans(matrix(hiera_res[[1]][-(1:burnin),],ncol = p*K)),p,K)
-  B_e_hat = matrix(colMeans(matrix(hiera_res[[2]][-(1:burnin),],ncol = K*K)),K,K)
-  B_u_hat = matrix(colMeans(matrix(hiera_res[[3]][-(1:burnin),],ncol = K*K)),K,K)
-  B_v_hat = matrix(colMeans(matrix(hiera_res[[4]][-(1:burnin),],ncol = K*K)),K,K)
-  if(length(hiera_res)==4){
+  coeffs_sd = matrix(apply(matrix(hiera_res[[1]][-(1:burnin),],ncol = p*K), 2, sd),p,K)
+  Sigma_e_all <- Sigma_u_all <- Sigma_v_all <- Sigma_w_all <- matrix(0, stem_len - burnin, K*K)
+  for(i in (burnin+1):stem_len){
+    B_e_tmp <- matrix(hiera_res[[2]][i,],K,K)
+    Sigma_e_all[i-burnin,] <- c(B_e_tmp %*% t(B_e_tmp))
+    B_u_tmp <- matrix(hiera_res[[3]][i,],K,K)
+    Sigma_u_all[i-burnin,] <- c(B_u_tmp %*% t(B_u_tmp))
+    if(length(hiera_res)>=4){
+      B_v_tmp <- matrix(hiera_res[[4]][i,],K,K)
+      Sigma_v_all[i-burnin,] <- c(B_v_tmp %*% t(B_v_tmp))
+    }
+    if(length(hiera_res)>=5){
+      B_w_tmp <- matrix(hiera_res[[5]][i,], K,K)
+      Sigma_w_all[i-burnin,] <- c(B_w_tmp %*% t(B_w_tmp))
+    }
+  }
+  if(length(hiera_res)==3){
     return(list('coeffs'= coeffs_hat,
-                'Sigma_e' = B_e_hat %*% t(B_e_hat),
-                'Sigma_u' = B_u_hat %*% t(B_u_hat),
-                'Sigma_v' = B_v_hat %*% t(B_v_hat)))
+                'coeffs_sd' = coeffs_sd,
+                'Sigma_e' = matrix(apply(Sigma_e_all,2,mean),K,K),
+                'Sigma_e_sd' = matrix(apply(Sigma_e_all,2,sd),K,K),
+                'Sigma_u' = matrix(apply(Sigma_u_all,2,mean),K,K),
+                'Sigma_u_sd' = matrix(apply(Sigma_u_all,2,sd),K,K)))
+  } else if(length(hiera_res)==4){
+    return(list('coeffs'= coeffs_hat,
+                'coeffs_sd' = coeffs_sd,
+                'Sigma_e' = matrix(apply(Sigma_e_all,2,mean),K,K),
+                'Sigma_e_sd' = matrix(apply(Sigma_e_all,2,sd),K,K),
+                'Sigma_u' = matrix(apply(Sigma_u_all,2,mean),K,K),
+                'Sigma_u_sd' = matrix(apply(Sigma_u_all,2,sd),K,K),
+                'Sigma_v' = matrix(apply(Sigma_v_all,2,mean),K,K),
+                'Sigma_v_sd' = matrix(apply(Sigma_v_all,2,sd),K,K)))
   } else{
-    B_w_hat = matrix(colMeans(matrix(hiera_res[[5]][-(1:burnin),],ncol = K*K)),K,K)
     return(list('coeffs'= coeffs_hat,
-                'Sigma_e' = B_e_hat %*% t(B_e_hat),
-                'Sigma_u' = B_u_hat %*% t(B_u_hat),
-                'Sigma_v' = B_v_hat %*% t(B_v_hat),
-                'Sigma_w' = B_w_hat %*% t(B_w_hat)))
+                'coeffs_sd' = coeffs_sd,
+                'Sigma_e' = matrix(apply(Sigma_e_all,2,mean),K,K),
+                'Sigma_e_sd' = matrix(apply(Sigma_e_all,2,sd),K,K),
+                'Sigma_u' = matrix(apply(Sigma_u_all,2,mean),K,K),
+                'Sigma_u_sd' = matrix(apply(Sigma_u_all,2,sd),K,K),
+                'Sigma_v' = matrix(apply(Sigma_v_all,2,mean),K,K),
+                'Sigma_v_sd' = matrix(apply(Sigma_v_all,2,sd),K,K),
+                'Sigma_w' = matrix(apply(Sigma_w_all,2,mean),K,K),
+                'Sigma_w_sd' = matrix(apply(Sigma_w_all,2,sd),K,K)))
   }
 }

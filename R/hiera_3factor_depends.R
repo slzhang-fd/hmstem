@@ -1,6 +1,5 @@
 sample_Y_star_3fac <- function(Y_pos_ind, Y_zero_ind, Y_star, Sigma_e, mu_v_u_w){
   K <- ncol(Y_star)
-  # mu_v_u_w <- Xbeta + V_all[j_ind,] + U_all[i_ind,] + W_all[jt_ind,]
   if(K==1){
     Y_star[Y_pos_ind[,1],1] <- rtruncnorm(1, a=0, mean = mu_v_u_w[Y_pos_ind[,1]], sd = 1)
     Y_star[Y_zero_ind[,1],1] <- rtruncnorm(1, b=0, mean = mu_v_u_w[Y_zero_ind[,1]], sd = 1)
