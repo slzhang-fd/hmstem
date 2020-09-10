@@ -48,7 +48,7 @@ hiera_1factor <- function(Y, x_covs, i_ind, max_steps){
   for(iter in 1:max_steps){
     cat('\r iter: ', iter, 'mu=',coeffs[1,])
     Sigma_e <- B_e %*% t(B_e)
-    Sigma_u <- B_u %*% t(B_u)
+    # Sigma_u <- B_u %*% t(B_u)
     Sigma_e_inv <- chol2inv(t(B_e))
     Sigma_u_inv <- chol2inv(t(B_u))
     Xbeta <- x_covs %*% coeffs
