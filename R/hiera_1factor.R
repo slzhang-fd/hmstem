@@ -79,5 +79,5 @@ hiera_1factor <- function(Y, x_covs, i_ind, max_steps){
 }
 #' @export test
 test <- function(){
-  cat("hello world")
+  cat("hello world!!!")
 }
