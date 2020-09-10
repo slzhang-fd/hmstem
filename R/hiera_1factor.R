@@ -77,3 +77,7 @@ hiera_1factor <- function(Y, x_covs, i_ind, max_steps){
               'B_e_all'=B_e_all,
               'B_u_all'=B_u_all))
 }
+#' @export test
+test <- function(){
+  cat("hello world")
+}
