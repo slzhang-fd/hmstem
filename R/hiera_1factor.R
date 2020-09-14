@@ -137,6 +137,21 @@ log_lik_1fac_deriv <- function(params, x_covs, y_u, u_all) {
     sigma_e_deriv[lower.tri(sigma_e_deriv, diag = F)], sigma_u_deriv[lower.tri(sigma_u_deriv, diag = T)])
 }
 
+log_lik_1fac_deriv1 <- function(coeffs, sigma_e_inv, sigma_u_inv, x_covs, y_u, u_all) {
+  cov_num <- ncol(x_covs)
+  k_dims <- ncol(y_u)
+  y_nums <- nrow(y_u)
+  u_nums <- nrow(u_all)
+
+  temp <- y_u - x_covs %*% coeffs
+  sigma_e_deriv <- - y_nums * sigma_e_inv +
+    sigma_e_inv %*%  t(temp) %*% temp %*% sigma_e_inv
+  sigma_u_deriv <- - u_nums * sigma_u_inv +
+    sigma_u_inv %*% t(u_all) %*% u_all %*% sigma_u_inv
+  diag(sigma_u_deriv) <- diag(sigma_u_deriv) / 2
+  c(t(x_covs) %*% temp %*% sigma_e_inv,
+    sigma_e_deriv[lower.tri(sigma_e_deriv, diag = F)], sigma_u_deriv[lower.tri(sigma_u_deriv, diag = T)])
+}
 sigma_hessian <- function(sigma_inv, residu, calcu_diag){
   K <- nrow(sigma_inv)
   off_num <- K*(K-1)/2 + calcu_diag * K
@@ -224,9 +239,9 @@ hiera_1fac_fisher_info <- function(Y, x_covs, i_ind, stem_res, burnin, max_steps
   Y_zero_ind <- Y==0
   Xbeta <- x_covs %*% coeffs
 
-  info_mat1 <- info_mat2 <- matrix(0, max_steps, params_num * params_num)
-  info_mat3 <- matrix(0, max_steps, params_num)
-  # store_res <- matrix(0, max_steps / 100, params_num * params_num)
+  info_mat1 <- info_mat2 <- matrix(0, params_num, params_num)
+  info_mat3 <- rep(0, params_num)
+  store_res <- matrix(0, max_steps / 1000, params_num * params_num)
   for(iter in 1:max_steps){
     cat('\r iter: ', iter, 'mu=',coeffs[1,])
     ## stochastic E step
@@ -240,29 +255,33 @@ hiera_1fac_fisher_info <- function(Y, x_covs, i_ind, stem_res, burnin, max_steps
     cat('sample U done |')
 
     # caculate information parts
-    g_vals <- log_lik_1fac_deriv(params, x_covs, Y_star - U_all[i_ind, ], U_all)
-    # portion_old = (iter - 1.0) / iter
-    # portion_new = 1.0 / iter
+    # g_vals <- log_lik_1fac_deriv(params, x_covs, Y_star - U_all[i_ind, ], U_all)
+    g_vals <- log_lik_1fac_deriv1(coeffs, sigma_e_inv, sigma_u_inv, x_covs, Y_star - U_all[i_ind, ], U_all)
+
+    portion_old = (iter - 1.0) / iter
+    portion_new = 1.0 / iter
     # info_mat1 <- portion_old * info_mat1 +
     #   portion_new * jacobian(func=log_lik_1fac_deriv, x=params, x_covs = x_covs,
     #                          y_u = Y_star - U_all[i_ind, ], u_all = U_all, method = "simple")
-    # info_mat1 <- portion_old * info_mat1 +
-    #   portion_new * log_lik_1fac_hessian(coeffs, sigma_e_inv, sigma_u_inv, x_covs,
-    #                                      Y_star - U_all[i_ind, ], U_all)
-    # info_mat2 <- portion_old * info_mat2 + portion_new * outer(g_vals, g_vals)
-    # info_mat3 <- portion_old * info_mat3 + portion_new * g_vals
-    info_mat1[iter,] <- c(log_lik_1fac_hessian(coeffs, sigma_e_inv, sigma_u_inv, x_covs,
-                                             Y_star - U_all[i_ind, ], U_all))
-    info_mat2[iter,] <- c(outer(g_vals, g_vals))
-    info_mat3[iter,] <- g_vals
-    # if(!(iter %% 100)){
-    #   ## calcuate fisher infomation matrix
-    #   temp <- -info_mat1 - info_mat2 + outer(info_mat3, info_mat3)
-    #   store_res[iter / 100,] <- c(temp)
-    #   cat(round(sqrt(diag(solve(temp))), 3),'\n')
-    # }
+    info_mat1 <- portion_old * info_mat1 +
+      portion_new * log_lik_1fac_hessian(coeffs, sigma_e_inv, sigma_u_inv, x_covs,
+                                         Y_star - U_all[i_ind, ], U_all)
+    info_mat2 <- portion_old * info_mat2 + portion_new * outer(g_vals, g_vals)
+    info_mat3 <- portion_old * info_mat3 + portion_new * g_vals
+
+    # info_mat1[iter,] <- c(log_lik_1fac_hessian(coeffs, sigma_e_inv, sigma_u_inv, x_covs,
+    #                                          Y_star - U_all[i_ind, ], U_all))
+    # info_mat2[iter,] <- c(outer(g_vals, g_vals))
+    # info_mat3[iter,] <- g_vals
+    if(!(iter %% 100)){
+      ## calcuate fisher infomation matrix
+      temp <- -info_mat1 - info_mat2 + outer(info_mat3, info_mat3)
+      store_res[iter / 1000,] <- c(temp)
+      cat(round(sqrt(diag(solve(temp))), 4),'\n')
+    }
   }
   return(list('info_mat1' = info_mat1,
               'info_mat2' = info_mat2,
-              'info_mat3' = info_mat3))
+              'info_mat3' = info_mat3,
+              'store_res' = store_res))
 }
