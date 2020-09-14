@@ -138,8 +138,6 @@ log_lik_1fac_deriv <- function(params, x_covs, y_u, u_all) {
 }
 
 log_lik_1fac_deriv1 <- function(coeffs, sigma_e_inv, sigma_u_inv, x_covs, y_u, u_all) {
-  cov_num <- ncol(x_covs)
-  k_dims <- ncol(y_u)
   y_nums <- nrow(y_u)
   u_nums <- nrow(u_all)
 
@@ -210,10 +208,8 @@ log_lik_1fac_hessian <- function(coeffs, sigma_e_inv, sigma_u_inv, x_covs, y_u, 
 }
 #' @export hiera_1fac_fisher_info
 hiera_1fac_fisher_info <- function(Y, x_covs, i_ind, stem_res, burnin, max_steps) {
-  K <- ncol(Y)
   rcd_num <- nrow(Y)
   ind_num <- max(i_ind)
-  cov_num <- ncol(x_covs)
 
   t_len <- aggregate(i_ind, by=list(i_ind), length)$x
 
