@@ -71,7 +71,11 @@ hiera_3factor <- function(Y, x_covs, j_ind, i_ind, jt_ind, max_steps){
               'B_e_all'=B_e_all,
               'B_u_all'=B_u_all,
               'B_v_all'=B_v_all,
-              'B_w_all'=B_w_all))
+              'B_w_all'=B_w_all,
+              'Y_star'=Y_star,
+              'U_all'=U_all,
+              'V_all'=V_all,
+              'W_all'=W_all))
 }
 #' @export
 res_summary <- function(hiera_res, burnin){
@@ -96,7 +100,7 @@ res_summary <- function(hiera_res, burnin){
       Sigma_w_all[i-burnin,] <- c(B_w_tmp %*% t(B_w_tmp))
     }
   }
-  if(length(hiera_res)==3){
+  if(length(hiera_res)==5){
     return(list('coeffs'= coeffs_hat,
                 'coeffs_sd' = coeffs_sd,
                 'Sigma_e' = matrix(apply(Sigma_e_all,2,mean),K,K),

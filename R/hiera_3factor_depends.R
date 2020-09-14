@@ -1,3 +1,4 @@
+#' @export sample_Y_star_3fac
 sample_Y_star_3fac <- function(Y_pos_ind, Y_zero_ind, Y_star, Sigma_e, mu_v_u_w){
   K <- ncol(Y_star)
   if(K==1){
@@ -18,7 +19,7 @@ sample_Y_star_3fac <- function(Y_pos_ind, Y_zero_ind, Y_star, Sigma_e, mu_v_u_w)
 
   Y_star
 }
-
+#' @export sample_X_all1_3fac
 sample_X_all1_3fac <- function(X_all, Sigma_e_inv, Sigma_x_inv, x_len, temp){
   # temp <- rowsum(Y_star - Xbeta - U_all[i_ind,] - V_all[j_ind,], jt_ind, reorder = T)
   for(pp in unique(x_len)){
