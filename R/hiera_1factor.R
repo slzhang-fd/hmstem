@@ -137,19 +137,20 @@ log_lik_1fac_deriv <- function(params, x_covs, y_u, u_all) {
     sigma_e_deriv[lower.tri(sigma_e_deriv, diag = F)], sigma_u_deriv[lower.tri(sigma_u_deriv, diag = T)])
 }
 
-log_lik_1fac_deriv1 <- function(coeffs, sigma_e_inv, sigma_u_inv, x_covs, y_u, u_all) {
-  y_nums <- nrow(y_u)
+log_lik_1fac_deriv1 <- function(sigma_e_inv, sigma_u_inv, x_covs, e_all, u_all) {
+  y_nums <- nrow(e_all)
   u_nums <- nrow(u_all)
 
-  temp <- y_u - x_covs %*% coeffs
+  # temp <- y_u - x_covs %*% coeffs
   sigma_e_deriv <- - y_nums * sigma_e_inv +
-    sigma_e_inv %*%  t(temp) %*% temp %*% sigma_e_inv
+    sigma_e_inv %*%  t(e_all) %*% e_all %*% sigma_e_inv
   sigma_u_deriv <- - u_nums * sigma_u_inv +
     sigma_u_inv %*% t(u_all) %*% u_all %*% sigma_u_inv
   diag(sigma_u_deriv) <- diag(sigma_u_deriv) / 2
-  c(t(x_covs) %*% temp %*% sigma_e_inv,
+  c(t(x_covs) %*% e_all %*% sigma_e_inv,
     sigma_e_deriv[lower.tri(sigma_e_deriv, diag = F)], sigma_u_deriv[lower.tri(sigma_u_deriv, diag = T)])
 }
+#' @export sigma_hessian
 sigma_hessian <- function(sigma_inv, residu, calcu_diag){
   K <- nrow(sigma_inv)
   off_num <- K*(K-1)/2 + calcu_diag * K
@@ -207,17 +208,18 @@ log_lik_1fac_hessian <- function(coeffs, sigma_e_inv, sigma_u_inv, x_covs, y_u, 
   }
 }
 #' @export hiera_1fac_fisher_info
-hiera_1fac_fisher_info <- function(Y, x_covs, i_ind, stem_res, burnin, max_steps) {
+hiera_1fac_fisher_info <- function(Y, x_covs, i_ind, stem_res, max_steps) {
   rcd_num <- nrow(Y)
   ind_num <- max(i_ind)
+  k_dims <- ncol(Y)
+  cov_num <- ncol(x_covs)
 
   t_len <- aggregate(i_ind, by=list(i_ind), length)$x
 
   ## set estimated parameters
-  params_hat <- res_summary(stem_res, burnin)
-  coeffs <- params_hat$coeffs
-  sigma_e <- params_hat$Sigma_e
-  sigma_u <- params_hat$Sigma_u
+  coeffs <- stem_res$coeffs
+  sigma_e <- stem_res$Sigma_e
+  sigma_u <- stem_res$Sigma_u
   sigma_e_inv <- solve(sigma_e)
   sigma_u_inv <- solve(sigma_u)
 
@@ -238,7 +240,11 @@ hiera_1fac_fisher_info <- function(Y, x_covs, i_ind, stem_res, burnin, max_steps
   info_mat1 <- info_mat2 <- matrix(0, params_num, params_num)
   info_mat3 <- rep(0, params_num)
   store_res <- matrix(0, max_steps / 1000, params_num * params_num)
-  for(iter in 1:max_steps){
+  h1 <- - kronecker(sigma_e_inv, t(x_covs) %*% x_covs)
+  h3 <- matrix(0, k_dims*(k_dims+1)/2, k_dims*(k_dims+1)/2)
+  h2 <- matrix(0, k_dims*(k_dims-1)/2,k_dims*(k_dims-1)/2)
+  h12 <- matrix(0, k_dims * cov_num, k_dims*(k_dims-1)/2)
+  for(iter in 1:(max_steps+1000)){
     cat('\r iter: ', iter, 'mu=',coeffs[1,])
     ## stochastic E step
     # sample Y_star
@@ -252,32 +258,48 @@ hiera_1fac_fisher_info <- function(Y, x_covs, i_ind, stem_res, burnin, max_steps
 
     # caculate information parts
     # g_vals <- log_lik_1fac_deriv(params, x_covs, Y_star - U_all[i_ind, ], U_all)
-    g_vals <- log_lik_1fac_deriv1(coeffs, sigma_e_inv, sigma_u_inv, x_covs, Y_star - U_all[i_ind, ], U_all)
-
-    portion_old = (iter - 1.0) / iter
-    portion_new = 1.0 / iter
+    if(iter > 1000){
+      iter_count <- iter - 1000
+      E_all <- Y_star - Xbeta - U_all[i_ind, ]
+      g_vals <- log_lik_1fac_deriv1(sigma_e_inv, sigma_u_inv, x_covs, E_all, U_all)
+      portion_old = (iter_count - 1.0) / iter_count
+      portion_new = 1.0 / iter_count
+      # info_mat1 <- portion_old * info_mat1 +
+      #   portion_new * log_lik_1fac_hessian(coeffs, sigma_e_inv, sigma_u_inv, x_covs,
+      #                                      Y_star - U_all[i_ind, ], U_all)
+      h3 <- portion_old * h3 + portion_new * sigma_hessian(sigma_u_inv, U_all, calcu_diag = T)
+      if(k_dims > 1){
+        h2 <- portion_old * h2 + portion_new * sigma_hessian(sigma_e_inv, E_all, calcu_diag = F)
+        h12 <- portion_old * h12 + portion_new * beta_sigma_deriv(sigma_e_inv, E_all, x_covs)
+      }
+      info_mat2 <- portion_old * info_mat2 + portion_new * outer(g_vals, g_vals)
+      info_mat3 <- portion_old * info_mat3 + portion_new * g_vals
+      if(!(iter_count %% 1000)){
+        ## calcuate fisher infomation matrix
+        if(k_dims == 1){
+          info_mat1 <- as.matrix(bdiag(h1,h3))
+        }else{
+          info_mat1 <- as.matrix(bdiag(rbind(cbind(h1, h12),cbind(t(h12), h2)), h3))
+        }
+        temp <- -info_mat1 - info_mat2 + outer(info_mat3, info_mat3)
+        store_res[iter_count / 1000,] <- c(temp)
+        cat(round(sqrt(diag(solve(temp))), 4),'\n')
+      }
+    }
     # info_mat1 <- portion_old * info_mat1 +
     #   portion_new * jacobian(func=log_lik_1fac_deriv, x=params, x_covs = x_covs,
     #                          y_u = Y_star - U_all[i_ind, ], u_all = U_all, method = "simple")
-    info_mat1 <- portion_old * info_mat1 +
-      portion_new * log_lik_1fac_hessian(coeffs, sigma_e_inv, sigma_u_inv, x_covs,
-                                         Y_star - U_all[i_ind, ], U_all)
-    info_mat2 <- portion_old * info_mat2 + portion_new * outer(g_vals, g_vals)
-    info_mat3 <- portion_old * info_mat3 + portion_new * g_vals
+
 
     # info_mat1[iter,] <- c(log_lik_1fac_hessian(coeffs, sigma_e_inv, sigma_u_inv, x_covs,
     #                                          Y_star - U_all[i_ind, ], U_all))
     # info_mat2[iter,] <- c(outer(g_vals, g_vals))
     # info_mat3[iter,] <- g_vals
-    if(!(iter %% 100)){
-      ## calcuate fisher infomation matrix
-      temp <- -info_mat1 - info_mat2 + outer(info_mat3, info_mat3)
-      store_res[iter / 1000,] <- c(temp)
-      cat(round(sqrt(diag(solve(temp))), 4),'\n')
-    }
   }
   return(list('info_mat1' = info_mat1,
               'info_mat2' = info_mat2,
               'info_mat3' = info_mat3,
-              'store_res' = store_res))
+              'store_res' = store_res,
+              'Y_star' = Y_star,
+              'U_all' = U_all))
 }
