@@ -11,8 +11,9 @@ Description: Hierarchical Modeling by Stochastic EM method.
 Imports: 
       truncnorm,
       mvtnorm,
-      numDeriv,
-      Matrix
+      Matrix,
+      MCMCpack,
+      matrixcalc
 License: use_gpl3_license()
 Encoding: UTF-8
 LazyData: true
