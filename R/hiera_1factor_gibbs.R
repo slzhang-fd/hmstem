@@ -62,7 +62,7 @@ hiera_1factor_gibbs <- function(Y, x_covs, i_ind, max_steps, cor_step_size = 0.0
     coeffs_all[iter,] <- coeffs
     Sigma_e_all[iter,] <- Sigma_e
     Sigma_u_all[iter,] <- Sigma_u
-    if(iter %% 100 == 0 && K > 1) cat(' rejection rate:', mean(diff(Sigma_e_all[1:iter,2])==0))
+    if(iter %% 100 == 0 && K > 1) cat(' rejection rate:', mean(diff(Sigma_e_all[(iter-99):iter,2])==0))
   }
   return(list('coeffs_all'=coeffs_all,
               'Sigma_e_all'=Sigma_e_all,
